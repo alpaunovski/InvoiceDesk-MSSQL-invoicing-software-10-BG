@@ -12,6 +12,7 @@
         Title="{Binding Source={StaticResource Loc}, Path=[AppTitle]}">
     <Window.Resources>
         <helpers:StatusToLocalizedConverter x:Key="StatusConverter" />
+        <helpers:DocumentTypeToLocalizedConverter x:Key="DocTypeConverter" />
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
     </Window.Resources>
     <DockPanel>
@@ -34,6 +35,8 @@
 
             <WrapPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" ItemHeight="32" ItemWidth="Auto">
                 <Button Content="{Binding Source={StaticResource Loc}, Path=[NewDraft]}" Command="{Binding NewDraftCommand}" Margin="0 0 6 6" />
+                <Button Content="{Binding Source={StaticResource Loc}, Path=[NewDebitNote]}" Command="{Binding NewDebitNoteCommand}" Margin="0 0 6 6" />
+                <Button Content="{Binding Source={StaticResource Loc}, Path=[NewCreditNote]}" Command="{Binding NewCreditNoteCommand}" Margin="0 0 6 6" />
                 <Button Content="{Binding Source={StaticResource Loc}, Path=[Save]}" Command="{Binding SaveCommand}" Margin="0 0 6 6" />
                 <Button Content="{Binding Source={StaticResource Loc}, Path=[Issue]}" Command="{Binding IssueCommand}" Margin="0 0 6 6" />
                 <Button Content="{Binding Source={StaticResource Loc}, Path=[DeleteInvoice]}" Command="{Binding DeleteInvoiceCommand}" Margin="0 0 6 6" />
@@ -69,7 +72,11 @@
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <StackPanel Margin="4">
-                                    <TextBlock Text="{Binding InvoiceNumber}" FontWeight="SemiBold" />
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding InvoiceNumber}" FontWeight="SemiBold" />
+                                        <TextBlock Text=" - " />
+                                        <TextBlock Text="{Binding DocumentType, Converter={StaticResource DocTypeConverter}}" FontWeight="SemiBold" Foreground="#223a5e" />
+                                    </StackPanel>
                                     <TextBlock Text="{Binding CustomerNameSnapshot}" FontSize="12" />
                                     <TextBlock Text="{Binding Status, Converter={StaticResource StatusConverter}}" FontSize="12" />
                                 </StackPanel>
@@ -95,10 +102,16 @@
                         <StackPanel Grid.Column="0" Margin="0 0 8 0">
                             <TextBlock Text="{Binding Source={StaticResource Loc}, Path=[InvoiceNumber]}" />
                             <TextBox Text="{Binding SelectedInvoice.InvoiceNumber, Mode=TwoWay}" IsReadOnly="True" />
+                            <TextBlock Text="{Binding Source={StaticResource Loc}, Path=[DocumentTypeLabel]}" />
+                            <ComboBox ItemsSource="{Binding DocumentTypes}" SelectedValuePath="Value" DisplayMemberPath="Label" SelectedValue="{Binding SelectedInvoice.DocumentType, Mode=TwoWay}" IsEnabled="{Binding SelectedInvoice.IsDraft}" />
+                            <TextBlock Text="{Binding Source={StaticResource Loc}, Path=[RefInvoiceNumber]}" />
+                            <TextBox Text="{Binding SelectedInvoice.RefInvoiceNumber, Mode=TwoWay}" IsEnabled="{Binding SelectedInvoice.IsDraft}" />
+                            <TextBlock Text="{Binding Source={StaticResource Loc}, Path=[RefInvoiceDate]}" />
+                            <DatePicker SelectedDate="{Binding SelectedInvoice.RefInvoiceDate, Mode=TwoWay}" IsEnabled="{Binding SelectedInvoice.IsDraft}" />
                             <TextBlock Text="{Binding Source={StaticResource Loc}, Path=[Customer]}" />
                             <ComboBox ItemsSource="{Binding Customers}" SelectedValuePath="Id" DisplayMemberPath="Name" SelectedValue="{Binding SelectedInvoice.CustomerId, Mode=TwoWay}" IsEnabled="{Binding SelectedInvoice.IsDraft}" />
                             <TextBlock Text="{Binding Source={StaticResource Loc}, Path=[Notes]}" />
-                            <TextBox Text="{Binding SelectedInvoice.Notes, Mode=TwoWay}" AcceptsReturn="True" Height="60" IsEnabled="{Binding SelectedInvoice.IsDraft}" />
+                            <TextBox Text="{Binding SelectedInvoice.Notes, Mode=TwoWay}" AcceptsReturn="True" Height="50" IsEnabled="{Binding SelectedInvoice.IsDraft}" />
                         </StackPanel>
 
                         <StackPanel Grid.Column="1" Margin="8 0 0 0">

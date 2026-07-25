@@ -63,6 +63,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         var entity = modelBuilder.Entity<Invoice>();
         // Snapshotted customer details and monetary precision per invoice.
         entity.Property(e => e.InvoiceNumber).HasMaxLength(64).IsRequired();
+        entity.Property(e => e.DocumentType).HasDefaultValue(InvoiceDocumentType.Invoice);
+        entity.Property(e => e.RefInvoiceNumber).HasMaxLength(64);
         entity.Property(e => e.Currency).HasMaxLength(8).IsRequired();
         entity.Property(e => e.InvoiceLanguage).HasMaxLength(8).IsRequired().HasDefaultValue("en");
         entity.Property(e => e.CustomerNameSnapshot).HasMaxLength(200).IsRequired();

@@ -82,6 +82,9 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private ObservableCollection<VatTypeOption> vatTypes = new();
 
+    [ObservableProperty]
+    private ObservableCollection<DocumentTypeOption> documentTypes = new();
+
     public XmlLanguage UiLanguage => XmlLanguage.GetLanguage(_languageService.CurrentCulture.IetfLanguageTag);
 
     public ObservableCollection<CultureOption> Cultures { get; } = new()
@@ -141,11 +144,13 @@ public partial class MainViewModel : ObservableObject
         _languageService.CultureChanged += (_, _) =>
         {
             RefreshVatTypes();
+            RefreshDocumentTypes();
             OnPropertyChanged(nameof(UiLanguage));
         };
 
-		// Ensure VAT options exist even before initialization completes.
+		// Ensure VAT and Document options exist even before initialization completes.
 		RefreshVatTypes();
+		RefreshDocumentTypes();
     }
 
     partial void OnSelectedInvoiceSummaryChanged(Invoice? value)
@@ -298,7 +303,57 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 		// Create a draft tied to the selected company and pre-selected customer.
-        var draft = await _invoiceService.CreateDraftAsync(SelectedCompany.Id, customerId.Value);
+        var draft = await _invoiceService.CreateDraftAsync(SelectedCompany.Id, customerId.Value, InvoiceDocumentType.Invoice);
+        await LoadInvoicesAsync();
+        await SelectInvoiceAsync(draft.Id);
+        StatusMessage = Strings.MessageDraftCreated;
+    }
+
+    [RelayCommand]
+    private async Task NewDebitNoteAsync()
+    {
+        if (SelectedCompany == null || !Customers.Any())
+        {
+            StatusMessage = Strings.MessageSelectCompanyCustomers;
+            return;
+        }
+
+        var customerId = SelectedCustomerForDraft?.Id;
+        if (customerId == null)
+        {
+            StatusMessage = Strings.MessageSelectCustomer;
+            return;
+        }
+
+        var refInvoiceNum = SelectedInvoice?.InvoiceNumber;
+        var refInvoiceDt = SelectedInvoice?.IssueDate;
+
+        var draft = await _invoiceService.CreateDraftAsync(SelectedCompany.Id, customerId.Value, InvoiceDocumentType.DebitNote, refInvoiceNum, refInvoiceDt);
+        await LoadInvoicesAsync();
+        await SelectInvoiceAsync(draft.Id);
+        StatusMessage = Strings.MessageDraftCreated;
+    }
+
+    [RelayCommand]
+    private async Task NewCreditNoteAsync()
+    {
+        if (SelectedCompany == null || !Customers.Any())
+        {
+            StatusMessage = Strings.MessageSelectCompanyCustomers;
+            return;
+        }
+
+        var customerId = SelectedCustomerForDraft?.Id;
+        if (customerId == null)
+        {
+            StatusMessage = Strings.MessageSelectCustomer;
+            return;
+        }
+
+        var refInvoiceNum = SelectedInvoice?.InvoiceNumber;
+        var refInvoiceDt = SelectedInvoice?.IssueDate;
+
+        var draft = await _invoiceService.CreateDraftAsync(SelectedCompany.Id, customerId.Value, InvoiceDocumentType.CreditNote, refInvoiceNum, refInvoiceDt);
         await LoadInvoicesAsync();
         await SelectInvoiceAsync(draft.Id);
         StatusMessage = Strings.MessageDraftCreated;
@@ -627,6 +682,16 @@ public partial class MainViewModel : ObservableObject
             new VatTypeOption { Value = VatType.IntraEuReverseCharge, Label = Strings.VatTypeIntraEuReverseCharge },
             new VatTypeOption { Value = VatType.ExportOutsideEu, Label = Strings.VatTypeExportOutsideEu },
             new VatTypeOption { Value = VatType.VatExempt, Label = Strings.VatTypeExempt }
+        });
+    }
+
+    private void RefreshDocumentTypes()
+    {
+        DocumentTypes = new ObservableCollection<DocumentTypeOption>(new[]
+        {
+            new DocumentTypeOption { Value = InvoiceDocumentType.Invoice, Label = Strings.DocTypeInvoice },
+            new DocumentTypeOption { Value = InvoiceDocumentType.DebitNote, Label = Strings.DocTypeDebitNote },
+            new DocumentTypeOption { Value = InvoiceDocumentType.CreditNote, Label = Strings.DocTypeCreditNote }
         });
     }
 

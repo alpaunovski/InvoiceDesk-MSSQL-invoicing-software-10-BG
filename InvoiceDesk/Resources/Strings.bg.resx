@@ -318,4 +318,43 @@
   <data name="MessageCompanySaved" xml:space="preserve">
     <value>Фирмата е записана.</value>
   </data>
+  <data name="DocTypeInvoice" xml:space="preserve">
+    <value>Фактура</value>
+  </data>
+  <data name="DocTypeDebitNote" xml:space="preserve">
+    <value>Дебитно известие</value>
+  </data>
+  <data name="DocTypeCreditNote" xml:space="preserve">
+    <value>Кредитно известие</value>
+  </data>
+  <data name="DocumentTypeLabel" xml:space="preserve">
+    <value>Вид документ</value>
+  </data>
+  <data name="RefInvoiceNumber" xml:space="preserve">
+    <value>Към фактура №</value>
+  </data>
+  <data name="RefInvoiceDate" xml:space="preserve">
+    <value>Дата на фактурата</value>
+  </data>
+  <data name="NewDebitNote" xml:space="preserve">
+    <value>Ново дебитно известие</value>
+  </data>
+  <data name="NewCreditNote" xml:space="preserve">
+    <value>Ново кредитно известие</value>
+  </data>
+  <data name="PdfDebitNoteTitle" xml:space="preserve">
+    <value>ДЕБИТНО ИЗВЕСТИЕ</value>
+  </data>
+  <data name="PdfCreditNoteTitle" xml:space="preserve">
+    <value>КРЕДИТНО ИЗВЕСТИЕ</value>
+  </data>
+  <data name="PdfInvoiceTitle" xml:space="preserve">
+    <value>ФАКТУРА</value>
+  </data>
+  <data name="PdfRefInvoiceLabel" xml:space="preserve">
+    <value>Към фактура №</value>
+  </data>
+  <data name="PdfRefInvoiceDateLabel" xml:space="preserve">
+    <value>От дата</value>
+  </data>
 </root>

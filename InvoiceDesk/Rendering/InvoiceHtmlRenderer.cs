@@ -29,6 +29,13 @@ public class InvoiceHtmlRenderer
         var vatSummary = BuildVatSummary(lines, numberCulture, dualCurrencyActive);
         var legalTexts = BuildLegalTexts(lines, dualCurrencyActive);
 
+        var docTitle = invoice.DocumentType switch
+        {
+            InvoiceDocumentType.DebitNote => Strings.PdfDebitNoteTitle,
+            InvoiceDocumentType.CreditNote => Strings.PdfCreditNoteTitle,
+            _ => Strings.PdfInvoiceTitle
+        };
+
         try
         {
             // Embed company logo as data URL if available to avoid external file dependencies.
@@ -62,7 +69,8 @@ public class InvoiceHtmlRenderer
         }
         sb.Append("</div>");
 
-        sb.Append("<div class='meta' style='margin-top:40px;'>");
+        sb.Append("<div class='meta' style='margin-top:20px;'>");
+        sb.Append($"<h2 style='text-transform:uppercase; margin-bottom: 8px;'>{Html(docTitle)}</h2>");
         sb.Append($"<span class='badge'>{Html(GetStatusLabel(invoice.Status))}</span>");
         sb.Append("</div>");
 
@@ -108,6 +116,17 @@ public class InvoiceHtmlRenderer
         sb.Append("<div class='meta'>");
         sb.Append($"<div>{Html(Strings.PdfInvoiceNumber)}: {Html(invoice.InvoiceNumber)}</div>");
         sb.Append($"<div>{Html(Strings.PdfIssueDate)}: {invoice.IssueDate.ToString("yyyy-MM-dd", numberCulture)}</div>");
+        if (invoice.DocumentType != InvoiceDocumentType.Invoice)
+        {
+            if (!string.IsNullOrWhiteSpace(invoice.RefInvoiceNumber))
+            {
+                sb.Append($"<div>{Html(Strings.PdfRefInvoiceLabel)}: {Html(invoice.RefInvoiceNumber)}</div>");
+            }
+            if (invoice.RefInvoiceDate.HasValue)
+            {
+                sb.Append($"<div>{Html(Strings.PdfRefInvoiceDateLabel)}: {invoice.RefInvoiceDate.Value.ToString("yyyy-MM-dd", numberCulture)}</div>");
+            }
+        }
         sb.Append($"<div>{Html(Strings.StatusLabel)}: {Html(GetStatusLabel(invoice.Status))}</div>");
         sb.Append("</div>");
 

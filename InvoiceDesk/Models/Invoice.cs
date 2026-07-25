@@ -15,6 +15,9 @@ public class Invoice
     public DateTime IssueDate { get; set; }
     public DateTime? IssuedAtUtc { get; set; }
     public InvoiceStatus Status { get; set; } = InvoiceStatus.Draft;
+    public InvoiceDocumentType DocumentType { get; set; } = InvoiceDocumentType.Invoice;
+    public string? RefInvoiceNumber { get; set; }
+    public DateTime? RefInvoiceDate { get; set; }
     public string InvoiceLanguage { get; set; } = "en";
     public string Currency { get; set; } = "BGN";
     public decimal SubTotal { get; set; }

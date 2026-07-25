@@ -176,6 +176,18 @@ namespace InvoiceDesk.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
 
+                    b.Property<int>("DocumentType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<string>("RefInvoiceNumber")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime?>("RefInvoiceDate")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime>("IssueDate")
                         .HasColumnType("datetime2");
 

@@ -26,7 +26,7 @@ public class InvoiceService
     /// <summary>
     /// Creates a draft invoice for the specified company/customer, snapshotting customer data for immutability.
     /// </summary>
-    public async Task<Invoice> CreateDraftAsync(int companyId, int customerId, CancellationToken cancellationToken = default)
+    public async Task<Invoice> CreateDraftAsync(int companyId, int customerId, InvoiceDocumentType documentType = InvoiceDocumentType.Invoice, string? refInvoiceNumber = null, DateTime? refInvoiceDate = null, CancellationToken cancellationToken = default)
     {
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
         var customer = await db.Customers.FirstOrDefaultAsync(c => c.Id == customerId && c.CompanyId == companyId, cancellationToken);
@@ -42,6 +42,9 @@ public class InvoiceService
             CustomerId = customerId,
             InvoiceNumber = GenerateDraftNumber(companyId),
             Status = InvoiceStatus.Draft,
+            DocumentType = documentType,
+            RefInvoiceNumber = refInvoiceNumber,
+            RefInvoiceDate = refInvoiceDate,
             IssueDate = DateTime.Today,
             InvoiceLanguage = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName,
             Currency = CurrencyHelper.NormalizeCurrencyOrDefault("BGN"),
@@ -76,6 +79,9 @@ public class InvoiceService
 
         existing.CustomerId = invoice.CustomerId;
         existing.IssueDate = invoice.IssueDate;
+        existing.DocumentType = invoice.DocumentType;
+        existing.RefInvoiceNumber = invoice.RefInvoiceNumber;
+        existing.RefInvoiceDate = invoice.RefInvoiceDate;
         existing.InvoiceLanguage = string.IsNullOrWhiteSpace(invoice.InvoiceLanguage)
             ? existing.InvoiceLanguage
             : invoice.InvoiceLanguage;

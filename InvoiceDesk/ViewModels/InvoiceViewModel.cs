@@ -26,6 +26,19 @@ public partial class InvoiceViewModel : ObservableObject
     private InvoiceStatus status = InvoiceStatus.Draft;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsInvoice))]
+    [NotifyPropertyChangedFor(nameof(IsDebitNote))]
+    [NotifyPropertyChangedFor(nameof(IsCreditNote))]
+    [NotifyPropertyChangedFor(nameof(RequiresRefInvoice))]
+    private InvoiceDocumentType documentType = InvoiceDocumentType.Invoice;
+
+    [ObservableProperty]
+    private string? refInvoiceNumber;
+
+    [ObservableProperty]
+    private DateTime? refInvoiceDate;
+
+    [ObservableProperty]
     private string invoiceLanguage = "en";
 
     [ObservableProperty]
@@ -57,6 +70,10 @@ public partial class InvoiceViewModel : ObservableObject
 
     public bool IsDraft => Status == InvoiceStatus.Draft;
     public bool IsIssued => Status == InvoiceStatus.Issued;
+    public bool IsInvoice => DocumentType == InvoiceDocumentType.Invoice;
+    public bool IsDebitNote => DocumentType == InvoiceDocumentType.DebitNote;
+    public bool IsCreditNote => DocumentType == InvoiceDocumentType.CreditNote;
+    public bool RequiresRefInvoice => DocumentType == InvoiceDocumentType.DebitNote || DocumentType == InvoiceDocumentType.CreditNote;
 
     public void RecalculateTotals()
     {
@@ -109,6 +126,9 @@ public partial class InvoiceViewModel : ObservableObject
             InvoiceNumber = invoice.InvoiceNumber,
             IssueDate = invoice.IssueDate,
             Status = invoice.Status,
+            DocumentType = invoice.DocumentType,
+            RefInvoiceNumber = invoice.RefInvoiceNumber,
+            RefInvoiceDate = invoice.RefInvoiceDate,
             InvoiceLanguage = string.IsNullOrWhiteSpace(invoice.InvoiceLanguage) ? "en" : invoice.InvoiceLanguage,
             Currency = CurrencyHelper.NormalizeCurrencyOrDefault(invoice.Currency),
             SubTotal = invoice.SubTotal,
@@ -132,6 +152,9 @@ public partial class InvoiceViewModel : ObservableObject
             InvoiceNumber = InvoiceNumber,
             IssueDate = IssueDate,
             Status = Status,
+            DocumentType = DocumentType,
+            RefInvoiceNumber = RefInvoiceNumber,
+            RefInvoiceDate = RefInvoiceDate,
             InvoiceLanguage = string.IsNullOrWhiteSpace(InvoiceLanguage) ? "en" : InvoiceLanguage,
             Currency = CurrencyHelper.NormalizeCurrencyOrDefault(Currency),
             SubTotal = SubTotal,

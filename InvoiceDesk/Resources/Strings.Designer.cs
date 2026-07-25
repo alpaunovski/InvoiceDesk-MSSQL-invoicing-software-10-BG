@@ -128,4 +128,17 @@ public static class Strings
     public static string Delete => Get();
     public static string Close => Get();
     public static string VatRegisteredLabel => Get();
+    public static string DocTypeInvoice => Get();
+    public static string DocTypeDebitNote => Get();
+    public static string DocTypeCreditNote => Get();
+    public static string DocumentTypeLabel => Get();
+    public static string RefInvoiceNumber => Get();
+    public static string RefInvoiceDate => Get();
+    public static string NewDebitNote => Get();
+    public static string NewCreditNote => Get();
+    public static string PdfDebitNoteTitle => Get();
+    public static string PdfCreditNoteTitle => Get();
+    public static string PdfInvoiceTitle => Get();
+    public static string PdfRefInvoiceLabel => Get();
+    public static string PdfRefInvoiceDateLabel => Get();
 }
