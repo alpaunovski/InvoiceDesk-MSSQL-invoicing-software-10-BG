@@ -67,3 +67,9 @@ InvoiceDesk/Exports/Invoice-DON2.pdf
 InvoiceDesk/Exports/Invoice-DON3.pdf
 tools/installer/Payloads/
 tools/installer/Output/
+
+# Misc
+/bin
+/obj
+/node_modules
+.vs/
