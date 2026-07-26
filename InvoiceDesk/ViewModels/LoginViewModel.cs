@@ -56,14 +56,14 @@ public sealed partial class LoginViewModel : ObservableObject
             }
             else
             {
-                ErrorMessage = "Invalid credentials";
+                ErrorMessage = response?.ErrorMessage ?? "Invalid email or password";
                 LoginFailed?.Invoke(this, ErrorMessage);
             }
         }
         catch (Exception ex)
         {
-            ErrorMessage = "Login failed. Please try again.";
-            LoginFailed?.Invoke(this, ErrorMessage + " " + ex.Message);
+            ErrorMessage = "Login failed: " + ex.Message;
+            LoginFailed?.Invoke(this, ErrorMessage);
         }
         finally
         {

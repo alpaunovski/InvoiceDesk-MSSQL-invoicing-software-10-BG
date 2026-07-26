@@ -2,6 +2,7 @@ using System;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using InvoiceDesk.Models;
@@ -19,6 +20,15 @@ public interface IAuthService
 
 public sealed class AuthService : IAuthService
 {
+    private sealed class WpErrorResponse
+    {
+        [JsonPropertyName("code")]
+        public string? Code { get; init; }
+
+        [JsonPropertyName("message")]
+        public string? Message { get; init; }
+    }
+
     private readonly HttpClient _httpClient;
     private readonly ILogger<AuthService> _logger;
     private readonly AuthOptions _options;
@@ -36,6 +46,7 @@ public sealed class AuthService : IAuthService
 
         _httpClient.BaseAddress = new Uri(_options.BaseUrl, UriKind.Absolute);
         _httpClient.Timeout = TimeSpan.FromSeconds(Math.Max(5, _options.RequestTimeoutSeconds));
+        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("InvoiceDeskDesktop/1.0 (Windows)");
     }
 
     public async Task<LoginResponse?> LoginAsync(string email, string password, string deviceName, CancellationToken cancellationToken = default)
@@ -47,15 +58,35 @@ public sealed class AuthService : IAuthService
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning("Login failed with status {Status}", response.StatusCode);
-                return null;
+                try
+                {
+                    var err = await response.Content.ReadFromJsonAsync<WpErrorResponse>(cancellationToken: cancellationToken);
+                    var msg = !string.IsNullOrWhiteSpace(err?.Message)
+                        ? err.Message
+                        : $"Server returned HTTP {(int)response.StatusCode} ({response.ReasonPhrase})";
+                    return new LoginResponse { Success = false, ErrorMessage = msg, ErrorCode = err?.Code };
+                }
+                catch
+                {
+                    return new LoginResponse
+                    {
+                        Success = false,
+                        ErrorMessage = $"Server returned HTTP {(int)response.StatusCode} ({response.ReasonPhrase})"
+                    };
+                }
             }
 
-            return await response.Content.ReadFromJsonAsync<LoginResponse>(cancellationToken: cancellationToken);
+            var result = await response.Content.ReadFromJsonAsync<LoginResponse>(cancellationToken: cancellationToken);
+            return result ?? new LoginResponse { Success = false, ErrorMessage = "Empty response from server." };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Login request failed");
-            return null;
+            return new LoginResponse
+            {
+                Success = false,
+                ErrorMessage = $"Connection failed: {ex.Message}"
+            };
         }
     }
 
