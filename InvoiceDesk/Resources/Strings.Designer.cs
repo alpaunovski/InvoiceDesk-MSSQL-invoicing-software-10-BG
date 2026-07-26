@@ -134,6 +134,8 @@ public static class Strings
     public static string DocumentTypeLabel => Get();
     public static string RefInvoiceNumber => Get();
     public static string RefInvoiceDate => Get();
+    public static string SelectRefInvoice => Get();
+    public static string MessageReferenceInvoiceApplied => Get();
     public static string NewDebitNote => Get();
     public static string NewCreditNote => Get();
     public static string PdfDebitNoteTitle => Get();

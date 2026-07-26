@@ -104,10 +104,31 @@
                             <TextBox Text="{Binding SelectedInvoice.InvoiceNumber, Mode=TwoWay}" IsReadOnly="True" />
                             <TextBlock Text="{Binding Source={StaticResource Loc}, Path=[DocumentTypeLabel]}" />
                             <ComboBox ItemsSource="{Binding DocumentTypes}" SelectedValuePath="Value" DisplayMemberPath="Label" SelectedValue="{Binding SelectedInvoice.DocumentType, Mode=TwoWay}" IsEnabled="{Binding SelectedInvoice.IsDraft}" />
-                            <TextBlock Text="{Binding Source={StaticResource Loc}, Path=[RefInvoiceNumber]}" />
-                            <TextBox Text="{Binding SelectedInvoice.RefInvoiceNumber, Mode=TwoWay}" IsEnabled="{Binding SelectedInvoice.IsDraft}" />
-                            <TextBlock Text="{Binding Source={StaticResource Loc}, Path=[RefInvoiceDate]}" />
-                            <DatePicker SelectedDate="{Binding SelectedInvoice.RefInvoiceDate, Mode=TwoWay}" IsEnabled="{Binding SelectedInvoice.IsDraft}" />
+
+                            <StackPanel Visibility="{Binding SelectedInvoice.RequiresRefInvoice, Converter={StaticResource BoolToVisibility}}">
+                                <TextBlock Text="{Binding Source={StaticResource Loc}, Path=[SelectRefInvoice]}" />
+                                <ComboBox ItemsSource="{Binding ReferenceInvoices}"
+                                          SelectedItem="{Binding SelectedReferenceInvoice, Mode=TwoWay}"
+                                          IsEnabled="{Binding SelectedInvoice.IsDraft}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding InvoiceNumber}" FontWeight="SemiBold" />
+                                                <TextBlock Text=" (" />
+                                                <TextBlock Text="{Binding IssueDate, StringFormat=d}" />
+                                                <TextBlock Text=" - " />
+                                                <TextBlock Text="{Binding CustomerNameSnapshot}" />
+                                                <TextBlock Text=")" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <TextBlock Text="{Binding Source={StaticResource Loc}, Path=[RefInvoiceNumber]}" />
+                                <TextBox Text="{Binding SelectedInvoice.RefInvoiceNumber, Mode=TwoWay}" IsEnabled="{Binding SelectedInvoice.IsDraft}" />
+                                <TextBlock Text="{Binding Source={StaticResource Loc}, Path=[RefInvoiceDate]}" />
+                                <DatePicker SelectedDate="{Binding SelectedInvoice.RefInvoiceDate, Mode=TwoWay}" IsEnabled="{Binding SelectedInvoice.IsDraft}" />
+                            </StackPanel>
+
                             <TextBlock Text="{Binding Source={StaticResource Loc}, Path=[Customer]}" />
                             <ComboBox ItemsSource="{Binding Customers}" SelectedValuePath="Id" DisplayMemberPath="Name" SelectedValue="{Binding SelectedInvoice.CustomerId, Mode=TwoWay}" IsEnabled="{Binding SelectedInvoice.IsDraft}" />
                             <TextBlock Text="{Binding Source={StaticResource Loc}, Path=[Notes]}" />

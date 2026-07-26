@@ -336,6 +336,12 @@
   <data name="RefInvoiceDate" xml:space="preserve">
     <value>Ref. Invoice Date</value>
   </data>
+  <data name="SelectRefInvoice" xml:space="preserve">
+    <value>Select Reference Invoice</value>
+  </data>
+  <data name="MessageReferenceInvoiceApplied" xml:space="preserve">
+    <value>Applied details from invoice {0}</value>
+  </data>
   <data name="NewDebitNote" xml:space="preserve">
     <value>New Debit Note</value>
   </data>

@@ -336,6 +336,12 @@
   <data name="RefInvoiceDate" xml:space="preserve">
     <value>Дата на фактурата</value>
   </data>
+  <data name="SelectRefInvoice" xml:space="preserve">
+    <value>Изберете референтна фактура</value>
+  </data>
+  <data name="MessageReferenceInvoiceApplied" xml:space="preserve">
+    <value>Приложени са данни от фактура {0}</value>
+  </data>
   <data name="NewDebitNote" xml:space="preserve">
     <value>Ново дебитно известие</value>
   </data>

@@ -53,6 +53,14 @@ public partial class MainViewModel : ObservableObject
     private InvoiceViewModel? selectedInvoice;
 
     [ObservableProperty]
+    private ObservableCollection<Invoice> referenceInvoices = new();
+
+    [ObservableProperty]
+    private Invoice? selectedReferenceInvoice;
+
+    private bool _isApplyingReferenceInvoice;
+
+    [ObservableProperty]
     private string? searchText;
 
     [ObservableProperty]
@@ -195,6 +203,24 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(SubTotalEur));
         OnPropertyChanged(nameof(TaxTotalEur));
         OnPropertyChanged(nameof(TotalEur));
+
+        RefreshReferenceInvoices();
+    }
+
+    partial void OnSelectedReferenceInvoiceChanged(Invoice? value)
+    {
+        if (_isApplyingReferenceInvoice)
+        {
+            return;
+        }
+
+        if (value != null && SelectedInvoice != null && SelectedInvoice.IsDraft && SelectedInvoice.RequiresRefInvoice)
+        {
+            if (SelectedInvoice.RefInvoiceNumber != value.InvoiceNumber)
+            {
+                _ = ApplyReferenceInvoiceAsync(value);
+            }
+        }
     }
 
     public async Task InitializeAsync()
@@ -318,19 +344,37 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        var customerId = SelectedCustomerForDraft?.Id;
-        if (customerId == null)
+        var refInvoice = SelectedInvoiceSummary ?? (SelectedInvoice != null ? Invoices.FirstOrDefault(i => i.Id == SelectedInvoice.Id) : null);
+
+        int customerId;
+        string? refInvoiceNum = null;
+        DateTime? refInvoiceDt = null;
+
+        if (refInvoice != null)
         {
-            StatusMessage = Strings.MessageSelectCustomer;
-            return;
+            customerId = refInvoice.CustomerId;
+            refInvoiceNum = refInvoice.InvoiceNumber;
+            refInvoiceDt = refInvoice.IssueDate;
+        }
+        else
+        {
+            if (SelectedCustomerForDraft?.Id == null)
+            {
+                StatusMessage = Strings.MessageSelectCustomer;
+                return;
+            }
+            customerId = SelectedCustomerForDraft.Id;
         }
 
-        var refInvoiceNum = SelectedInvoice?.InvoiceNumber;
-        var refInvoiceDt = SelectedInvoice?.IssueDate;
-
-        var draft = await _invoiceService.CreateDraftAsync(SelectedCompany.Id, customerId.Value, InvoiceDocumentType.DebitNote, refInvoiceNum, refInvoiceDt);
+        var draft = await _invoiceService.CreateDraftAsync(SelectedCompany.Id, customerId, InvoiceDocumentType.DebitNote, refInvoiceNum, refInvoiceDt);
         await LoadInvoicesAsync();
         await SelectInvoiceAsync(draft.Id);
+
+        if (refInvoice != null && SelectedInvoice != null)
+        {
+            await ApplyReferenceInvoiceAsync(refInvoice);
+        }
+
         StatusMessage = Strings.MessageDraftCreated;
     }
 
@@ -343,19 +387,37 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        var customerId = SelectedCustomerForDraft?.Id;
-        if (customerId == null)
+        var refInvoice = SelectedInvoiceSummary ?? (SelectedInvoice != null ? Invoices.FirstOrDefault(i => i.Id == SelectedInvoice.Id) : null);
+
+        int customerId;
+        string? refInvoiceNum = null;
+        DateTime? refInvoiceDt = null;
+
+        if (refInvoice != null)
         {
-            StatusMessage = Strings.MessageSelectCustomer;
-            return;
+            customerId = refInvoice.CustomerId;
+            refInvoiceNum = refInvoice.InvoiceNumber;
+            refInvoiceDt = refInvoice.IssueDate;
+        }
+        else
+        {
+            if (SelectedCustomerForDraft?.Id == null)
+            {
+                StatusMessage = Strings.MessageSelectCustomer;
+                return;
+            }
+            customerId = SelectedCustomerForDraft.Id;
         }
 
-        var refInvoiceNum = SelectedInvoice?.InvoiceNumber;
-        var refInvoiceDt = SelectedInvoice?.IssueDate;
-
-        var draft = await _invoiceService.CreateDraftAsync(SelectedCompany.Id, customerId.Value, InvoiceDocumentType.CreditNote, refInvoiceNum, refInvoiceDt);
+        var draft = await _invoiceService.CreateDraftAsync(SelectedCompany.Id, customerId, InvoiceDocumentType.CreditNote, refInvoiceNum, refInvoiceDt);
         await LoadInvoicesAsync();
         await SelectInvoiceAsync(draft.Id);
+
+        if (refInvoice != null && SelectedInvoice != null)
+        {
+            await ApplyReferenceInvoiceAsync(refInvoice);
+        }
+
         StatusMessage = Strings.MessageDraftCreated;
     }
 
@@ -636,6 +698,7 @@ public partial class MainViewModel : ObservableObject
     {
         var results = await _invoiceQueryService.SearchAsync(SearchText, FromDate, ToDate, SelectedCustomerFilter?.Id);
         Invoices = new ObservableCollection<Invoice>(results);
+        RefreshReferenceInvoices();
         if (SelectedInvoice != null)
         {
             SelectedInvoiceSummary = Invoices.FirstOrDefault(i => i.Id == SelectedInvoice.Id); // Preserve selection after refresh when possible.
@@ -706,6 +769,99 @@ public partial class MainViewModel : ObservableObject
             OnPropertyChanged(nameof(SubTotalEur));
             OnPropertyChanged(nameof(TaxTotalEur));
             OnPropertyChanged(nameof(TotalEur));
+        }
+
+        if (e.PropertyName is nameof(InvoiceViewModel.RefInvoiceNumber)
+            or nameof(InvoiceViewModel.DocumentType))
+        {
+            RefreshReferenceInvoices();
+        }
+    }
+
+    private async Task ApplyReferenceInvoiceAsync(Invoice refInvoiceSummary)
+    {
+        if (SelectedInvoice == null || !SelectedInvoice.IsDraft)
+        {
+            return;
+        }
+
+        _isApplyingReferenceInvoice = true;
+        try
+        {
+            var fullInvoice = await _invoiceQueryService.GetInvoiceWithLinesAsync(refInvoiceSummary.Id);
+            if (fullInvoice == null)
+            {
+                return;
+            }
+
+            SelectedInvoice.RefInvoiceNumber = fullInvoice.InvoiceNumber;
+            SelectedInvoice.RefInvoiceDate = fullInvoice.IssueDate;
+            SelectedInvoice.CustomerId = fullInvoice.CustomerId;
+            SelectedInvoice.CustomerNameSnapshot = fullInvoice.CustomerNameSnapshot;
+            SelectedInvoice.CustomerAddressSnapshot = fullInvoice.CustomerAddressSnapshot;
+            SelectedInvoice.CustomerVatSnapshot = fullInvoice.CustomerVatSnapshot;
+            SelectedInvoice.Currency = CurrencyHelper.NormalizeCurrencyOrDefault(fullInvoice.Currency);
+            SelectedInvoice.InvoiceLanguage = string.IsNullOrWhiteSpace(fullInvoice.InvoiceLanguage) ? "en" : fullInvoice.InvoiceLanguage;
+
+            SelectedInvoice.Lines.Clear();
+            if (fullInvoice.Lines != null)
+            {
+                foreach (var line in fullInvoice.Lines)
+                {
+                    SelectedInvoice.Lines.Add(new InvoiceLineViewModel
+                    {
+                        Description = line.Description,
+                        Qty = line.Qty,
+                        UnitPrice = line.UnitPrice,
+                        TaxRate = line.TaxRate,
+                        VatType = line.VatType,
+                        LineTotal = line.LineTotal
+                    });
+                }
+            }
+
+            SelectedInvoice.RecalculateTotals();
+            SyncSelectedReferenceInvoice();
+            StatusMessage = string.Format(Strings.MessageReferenceInvoiceApplied, fullInvoice.InvoiceNumber);
+        }
+        finally
+        {
+            _isApplyingReferenceInvoice = false;
+        }
+    }
+
+    private void RefreshReferenceInvoices()
+    {
+        var currentInvoiceId = SelectedInvoice?.Id;
+        var candidates = Invoices
+            .Where(i => i.Id != currentInvoiceId && (i.Status == InvoiceStatus.Issued || (!string.IsNullOrWhiteSpace(i.InvoiceNumber) && !i.InvoiceNumber.StartsWith("DRAFT"))))
+            .OrderByDescending(i => i.IssueDate)
+            .ThenByDescending(i => i.InvoiceNumber)
+            .ToList();
+
+        if (!candidates.Any() && Invoices.Any())
+        {
+            candidates = Invoices.Where(i => i.Id != currentInvoiceId).OrderByDescending(i => i.IssueDate).ToList();
+        }
+
+        ReferenceInvoices = new ObservableCollection<Invoice>(candidates);
+        SyncSelectedReferenceInvoice();
+    }
+
+    private void SyncSelectedReferenceInvoice()
+    {
+        if (_isApplyingReferenceInvoice)
+        {
+            return;
+        }
+
+        if (SelectedInvoice != null && SelectedInvoice.RequiresRefInvoice && !string.IsNullOrWhiteSpace(SelectedInvoice.RefInvoiceNumber))
+        {
+            SelectedReferenceInvoice = ReferenceInvoices.FirstOrDefault(r => r.InvoiceNumber == SelectedInvoice.RefInvoiceNumber);
+        }
+        else
+        {
+            SelectedReferenceInvoice = null;
         }
     }
 }
