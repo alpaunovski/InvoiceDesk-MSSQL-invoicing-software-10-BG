@@ -32,6 +32,8 @@ class InvoiceDeskAuthPlugin
         add_action('admin_menu', [$this, 'register_admin_menu']);
 
         add_action('admin_post_invoicedesk_update_user', [$this, 'handle_user_update']);
+        add_action('admin_post_invoicedesk_add_user', [$this, 'handle_add_user']);
+        add_action('admin_post_invoicedesk_remove_user', [$this, 'handle_remove_user']);
         add_action('admin_post_invoicedesk_revoke_session', [$this, 'handle_revoke_session']);
         add_action('admin_post_invoicedesk_reset_password', [$this, 'handle_reset_password']);
     }
@@ -118,7 +120,11 @@ class InvoiceDeskAuthPlugin
 
     private function require_https()
     {
-        if (!is_ssl()) {
+        $is_https = is_ssl() ||
+            (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower($_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https') ||
+            (isset($_SERVER['HTTP_CF_VISITOR']) && strpos($_SERVER['HTTP_CF_VISITOR'], '"scheme":"https"') !== false);
+
+        if (!$is_https) {
             return new WP_Error('insecure_request', 'HTTPS is required', ['status' => 403]);
         }
         return true;
@@ -129,6 +135,12 @@ class InvoiceDeskAuthPlugin
         $header = $request->get_header('authorization');
         if (!$header) {
             $header = $request->get_header('Authorization');
+        }
+        if (!$header && isset($_SERVER['HTTP_AUTHORIZATION'])) {
+            $header = $_SERVER['HTTP_AUTHORIZATION'];
+        }
+        if (!$header && isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+            $header = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
         }
         if ($header && stripos($header, 'Bearer ') === 0) {
             return sanitize_text_field(substr($header, 7));
@@ -144,22 +156,32 @@ class InvoiceDeskAuthPlugin
             return $secure;
         }
 
-        $email = sanitize_email($request->get_param('email'));
+        $input_email = trim($request->get_param('email') ?? '');
         $password = $request->get_param('password');
         $device_name = sanitize_text_field($request->get_param('device_name'));
 
-        if (empty($email) || empty($password)) {
-            return new WP_Error('invalid_request', 'Email and password are required', ['status' => 400]);
+        if (empty($input_email) || empty($password)) {
+            return new WP_Error('invalid_request', 'Email/username and password are required', ['status' => 400]);
         }
 
-        $user = get_user_by('email', $email);
+        $user = get_user_by('email', sanitize_email($input_email));
+        if (!$user) {
+            $user = get_user_by('login', sanitize_user($input_email));
+        }
+
         if (!$user || !wp_check_password($password, $user->user_pass, $user->ID)) {
             return new WP_Error('invalid_credentials', 'Invalid email or password', ['status' => 401]);
         }
 
-        $status = get_user_meta($user->ID, 'account_status', true) ?: 'active';
-        if ($status !== 'active') {
+        $status = get_user_meta($user->ID, 'account_status', true);
+        if ($status === 'suspended') {
             return new WP_Error('account_suspended', 'Account is suspended', ['status' => 403]);
+        }
+        if (empty($status) || $status === 'disabled' || $status === 'no_access') {
+            return new WP_Error('access_denied', 'This account does not have InvoiceDesk access', ['status' => 403]);
+        }
+        if ($status !== 'active') {
+            return new WP_Error('access_denied', 'This account does not have InvoiceDesk access', ['status' => 403]);
         }
 
         $max_sessions = (int) (get_user_meta($user->ID, 'max_sessions', true) ?: 1);
@@ -346,6 +368,13 @@ class InvoiceDeskAuthPlugin
 
     private function get_ip_address()
     {
+        if (!empty($_SERVER['HTTP_CF_CONNECTING_IP'])) {
+            return sanitize_text_field($_SERVER['HTTP_CF_CONNECTING_IP']);
+        }
+        if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+            $parts = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+            return sanitize_text_field(trim($parts[0]));
+        }
         $ip = $_SERVER['REMOTE_ADDR'] ?? '';
         return sanitize_text_field($ip);
     }
@@ -386,35 +415,74 @@ class InvoiceDeskAuthPlugin
             wp_die('Unauthorized');
         }
 
-        $users = get_users(['orderby' => 'user_email', 'order' => 'ASC']);
+        $all_users = get_users(['orderby' => 'user_email', 'order' => 'ASC']);
+        $invoicedesk_users = [];
+        $available_wp_users = [];
+
+        foreach ($all_users as $user) {
+            $status = get_user_meta($user->ID, 'account_status', true);
+            if ($status === 'active' || $status === 'suspended') {
+                $invoicedesk_users[] = $user;
+            } else {
+                $available_wp_users[] = $user;
+            }
+        }
+
         $nonce = wp_create_nonce('invoicedesk_users');
         ?>
         <div class="wrap">
             <h1>InvoiceDesk Users</h1>
-            <table class="widefat fixed striped">
+            <p style="font-size:14px; color:#50575e;">Manage users authorized to log in to the InvoiceDesk desktop application. Removing a user revokes their InvoiceDesk access and active sessions without deleting their WordPress account.</p>
+
+            <?php if (isset($_GET['updated'])): ?>
+                <div class="notice notice-success is-dismissible"><p>User settings updated.</p></div>
+            <?php endif; ?>
+            <?php if (isset($_GET['user_added'])): ?>
+                <div class="notice notice-success is-dismissible"><p>User added to InvoiceDesk.</p></div>
+            <?php endif; ?>
+            <?php if (isset($_GET['user_removed'])): ?>
+                <div class="notice notice-warning is-dismissible"><p>User removed from InvoiceDesk. Active sessions revoked. (WordPress account was NOT deleted.)</p></div>
+            <?php endif; ?>
+            <?php if (isset($_GET['password_reset'])): ?>
+                <div class="notice notice-success is-dismissible"><p>Password reset email sent to user.</p></div>
+            <?php endif; ?>
+
+            <h2>Authorized InvoiceDesk Users</h2>
+            <?php if (empty($invoicedesk_users)): ?>
+                <p><em>No users are currently added to InvoiceDesk. Select a WordPress user below to add them.</em></p>
+            <?php else: ?>
+            <table class="widefat fixed striped" style="margin-bottom: 25px;">
                 <thead>
                     <tr>
-                        <th>Email</th>
+                        <th>Email / Username</th>
                         <th>Max Sessions</th>
-                        <th>Account Status</th>
+                        <th>Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                <?php foreach ($users as $user): 
+                <?php foreach ($invoicedesk_users as $user): 
                     $max_sessions = (int) (get_user_meta($user->ID, 'max_sessions', true) ?: 1);
                     $status = get_user_meta($user->ID, 'account_status', true) ?: 'active';
                 ?>
                     <tr>
-                        <td><?php echo esc_html($user->user_email); ?></td>
+                        <td><strong><?php echo esc_html($user->user_email); ?></strong> (<?php echo esc_html($user->user_login); ?>)</td>
                         <td><?php echo esc_html($max_sessions); ?></td>
-                        <td><?php echo esc_html($status); ?></td>
+                        <td>
+                            <?php 
+                            if ($status === 'active') {
+                                echo '<span style="color:green;font-weight:bold;">Active</span>';
+                            } else {
+                                echo '<span style="color:orange;font-weight:bold;">Suspended</span>';
+                            }
+                            ?>
+                        </td>
                         <td>
                             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block;margin-right:6px;">
                                 <input type="hidden" name="action" value="invoicedesk_update_user" />
                                 <input type="hidden" name="_wpnonce" value="<?php echo esc_attr($nonce); ?>" />
                                 <input type="hidden" name="user_id" value="<?php echo esc_attr($user->ID); ?>" />
-                                <label>Max sessions: <input type="number" min="1" name="max_sessions" value="<?php echo esc_attr($max_sessions); ?>" /></label>
+                                <label>Max sessions: <input type="number" min="1" name="max_sessions" value="<?php echo esc_attr($max_sessions); ?>" style="width:60px;" /></label>
                                 <label>Status:
                                     <select name="account_status">
                                         <option value="active" <?php selected($status, 'active'); ?>>Active</option>
@@ -422,6 +490,13 @@ class InvoiceDeskAuthPlugin
                                     </select>
                                 </label>
                                 <button class="button button-primary" type="submit">Save</button>
+                            </form>
+
+                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block;margin-right:6px;">
+                                <input type="hidden" name="action" value="invoicedesk_remove_user" />
+                                <input type="hidden" name="_wpnonce" value="<?php echo esc_attr($nonce); ?>" />
+                                <input type="hidden" name="user_id" value="<?php echo esc_attr($user->ID); ?>" />
+                                <button class="button button-link-delete" style="color:#b32d2e;text-decoration:none;border:1px solid #b32d2e;padding:3px 8px;border-radius:3px;background:#fff;" type="submit" onclick="return confirm('Remove <?php echo esc_js($user->user_email); ?> from InvoiceDesk?\n\nThis will remove their InvoiceDesk access and active sessions, but WILL NOT delete their WordPress user account.')">Remove User</button>
                             </form>
 
                             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block;">
@@ -435,6 +510,37 @@ class InvoiceDeskAuthPlugin
                 <?php endforeach; ?>
                 </tbody>
             </table>
+            <?php endif; ?>
+
+            <h2>Add WordPress User to InvoiceDesk</h2>
+            <?php if (empty($available_wp_users)): ?>
+                <p><em>All WordPress users on this site are currently added to InvoiceDesk.</em></p>
+            <?php else: ?>
+                <div class="card" style="max-width: 550px; padding: 15px 20px; background: #fff; border: 1px solid #ccd0d4; border-radius: 4px;">
+                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                        <input type="hidden" name="action" value="invoicedesk_add_user" />
+                        <input type="hidden" name="_wpnonce" value="<?php echo esc_attr($nonce); ?>" />
+                        <p style="margin-top:0;">
+                            <label for="add_user_id"><strong>Select WordPress User:</strong></label><br/>
+                            <select name="user_id" id="add_user_id" style="width: 100%; max-width: 400px; margin-top: 5px;" required>
+                                <option value="">-- Choose WordPress User --</option>
+                                <?php foreach ($available_wp_users as $wp_user): ?>
+                                    <option value="<?php echo esc_attr($wp_user->ID); ?>">
+                                        <?php echo esc_html($wp_user->user_email); ?> (<?php echo esc_html($wp_user->user_login); ?>)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </p>
+                        <p>
+                            <label for="add_max_sessions"><strong>Max Active Sessions:</strong></label><br/>
+                            <input type="number" min="1" name="max_sessions" id="add_max_sessions" value="1" style="width: 80px; margin-top: 5px;" />
+                        </p>
+                        <p style="margin-bottom:0;">
+                            <button class="button button-primary" type="submit">Add User to InvoiceDesk</button>
+                        </p>
+                    </form>
+                </div>
+            <?php endif; ?>
         </div>
         <?php
     }
@@ -504,11 +610,59 @@ class InvoiceDeskAuthPlugin
         $status = sanitize_text_field($_POST['account_status'] ?? 'active');
 
         if ($user_id) {
+            $allowed_statuses = ['active', 'suspended'];
+            if (!in_array($status, $allowed_statuses, true)) {
+                $status = 'active';
+            }
             update_user_meta($user_id, 'max_sessions', max(1, $max_sessions));
-            update_user_meta($user_id, 'account_status', $status === 'suspended' ? 'suspended' : 'active');
+            update_user_meta($user_id, 'account_status', $status);
+
+            if ($status === 'suspended') {
+                global $wpdb;
+                $wpdb->delete($this->table_name, ['user_id' => $user_id], ['%d']);
+            }
         }
 
         wp_safe_redirect(admin_url('admin.php?page=invoicedesk&updated=1'));
+        exit;
+    }
+
+    public function handle_add_user()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        check_admin_referer('invoicedesk_users');
+
+        $user_id = absint($_POST['user_id'] ?? 0);
+        $max_sessions = absint($_POST['max_sessions'] ?? 1);
+
+        if ($user_id) {
+            update_user_meta($user_id, 'account_status', 'active');
+            update_user_meta($user_id, 'max_sessions', max(1, $max_sessions));
+        }
+
+        wp_safe_redirect(admin_url('admin.php?page=invoicedesk&user_added=1'));
+        exit;
+    }
+
+    public function handle_remove_user()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        check_admin_referer('invoicedesk_users');
+
+        $user_id = absint($_POST['user_id'] ?? 0);
+        if ($user_id) {
+            delete_user_meta($user_id, 'account_status');
+            delete_user_meta($user_id, 'max_sessions');
+
+            global $wpdb;
+            $wpdb->delete($this->table_name, ['user_id' => $user_id], ['%d']);
+        }
+
+        wp_safe_redirect(admin_url('admin.php?page=invoicedesk&user_removed=1'));
         exit;
     }
 

@@ -12,15 +12,15 @@ This document describes the InvoiceDesk authentication stack: the WordPress back
 - Table `wp_invoicedesk_sessions` columns: `id`, `user_id`, `token`, `device_name`, `ip_address`, `created_at`, `last_seen`, `is_active`, `expires_at`; indexed on `user_id` and `token`.
 - User meta:
   - `max_sessions` (int, default 1)
-  - `account_status` (`active` or `suspended`)
+  - `account_status` (`active`, `suspended`, or `disabled`)
 - REST endpoints (POST):
-  - `/login`: email/password → enforces `account_status`, prunes oldest session if limit hit, issues 32-byte hex token, 24h expiry.
+  - `/login`: email/username + password → enforces `account_status` (`active`), prunes oldest session if limit hit, issues 32-byte hex token, 24h expiry.
   - `/validate`: Bearer token → checks active/not expired, updates `last_seen` and IP.
   - `/logout`: Bearer token → deactivates session.
   - `/sessions/list` (admin): lists active sessions with user email, device, IP, timestamps.
   - `/sessions/revoke` (admin): deactivates a session by id.
 - Admin UI (wp-admin → InvoiceDesk menu):
-  - Users: view email, `max_sessions`, `account_status`; edit max sessions, suspend/activate, reset password (email sent with random password).
+  - Users: View **Authorized InvoiceDesk Users** list with **Remove User** button (removes them from InvoiceDesk and revokes active sessions without deleting their WordPress user account). Add any existing WordPress user to InvoiceDesk using the **Add WordPress User to InvoiceDesk** section.
   - Sessions: view active sessions; revoke a session.
 - Security: HTTPS required; capability checks for admin routes; nonces on admin forms; all inputs sanitized and SQL uses `$wpdb->prepare`.
 

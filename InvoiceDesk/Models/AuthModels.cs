@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 
 namespace InvoiceDesk.Models;
 
@@ -6,7 +7,12 @@ public sealed class LoginResponse
 {
     public bool Success { get; init; }
     public string Token { get; init; } = string.Empty;
+
+    [JsonPropertyName("expires_in")]
     public int ExpiresIn { get; init; }
+
+    public string? ErrorMessage { get; set; }
+    public string? ErrorCode { get; set; }
 }
 
 public sealed class ValidateResponse
