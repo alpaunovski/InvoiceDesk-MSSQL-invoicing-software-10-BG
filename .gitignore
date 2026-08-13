@@ -30,6 +30,9 @@ InvoiceDesk/logs/app.log
 # Top Secret files
 **/MyTopSecretInfos.txt
 
+# Diploma thesis document
+Дипломна_Работа_MSSQL.docx
+
 
 
 # .NET Core
