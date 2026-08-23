@@ -49,11 +49,15 @@ dotnet clean InvoiceDesk.sln   # to clear bin/obj
 dotnet run --project InvoiceDesk
 ```
 
-## Installer (Inno Setup)
-1. Publish Release build:
-	- `dotnet publish InvoiceDesk/InvoiceDesk.csproj -c Release -r win-x64 --self-contained false /p:PublishSingleFile=false`
-2. Open and compile [tools/installer/InvoiceDesk.iss](tools/installer/InvoiceDesk.iss) with Inno Setup Compiler.
-3. Ensure prerequisites are installed on target machines: Microsoft Edge WebView2 Runtime and .NET Desktop Runtime 8+ (LocalDB if you use the default connection string).
+## Installer (Inno Setup - 1-Click Setup)
+1. Run automated build script (or compile manually):
+	- PowerShell: `.\tools\installer\build-installer.ps1`
+	- Manual Publish: `dotnet publish InvoiceDesk/InvoiceDesk.csproj -c Release -r win-x64 --self-contained false /p:PublishSingleFile=false`
+2. Compile [tools/installer/InvoiceDesk.iss](tools/installer/InvoiceDesk.iss) with Inno Setup Compiler (`ISCC.exe`).
+3. **Automated Prerequisites**: On clean Windows 10 / 11 machines, the installer automatically detects, downloads (or extracts from `Payloads/`), and silently installs all required dependencies:
+	- **Microsoft .NET 8.0 Desktop Runtime (x64)**
+	- **Microsoft Edge WebView2 Evergreen Runtime**
+	- **Microsoft SQL Server LocalDB (2019/2022)** and initializes the `MSSQLLocalDB` instance.
 
 ## Runtime Behavior
 - Multi-company isolation: services use `ICompanyContext` to scope queries.
