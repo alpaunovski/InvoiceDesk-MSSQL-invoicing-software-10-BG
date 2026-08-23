@@ -35,6 +35,8 @@ InvoiceDesk/logs/
 .vs/
 .idea/
 executable/
+executables/
+[Ee]xecutables/
 .vscode/*
 !.vscode/tasks.json
 !.vscode/launch.json

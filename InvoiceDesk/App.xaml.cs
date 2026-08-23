@@ -221,28 +221,8 @@ public partial class App : Application
 	private static string GetLogPath(IConfiguration? configuration = null)
 	{
 		var configuredPath = configuration?["Logging:FilePath"];
-		var workspaceRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", ".."));
-		string path;
-
-		if (!string.IsNullOrWhiteSpace(configuredPath))
-		{
-			var expanded = Environment.ExpandEnvironmentVariables(configuredPath);
-			path = Path.IsPathRooted(expanded)
-				? expanded
-				: Path.GetFullPath(Path.Combine(workspaceRoot, expanded));
-		}
-		else
-		{
-			path = Path.Combine(workspaceRoot, "logs", "app.log");
-		}
-
-		var directory = Path.GetDirectoryName(path);
-		if (!string.IsNullOrWhiteSpace(directory))
-		{
-			Directory.CreateDirectory(directory);
-		}
-
-		return path;
+		var targetPath = !string.IsNullOrWhiteSpace(configuredPath) ? configuredPath : "logs/app.log";
+		return AppPaths.ResolvePath(targetPath);
 	}
 
 	private void AttachGlobalExceptionLogging(string logPath)

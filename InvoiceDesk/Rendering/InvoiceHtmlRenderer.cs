@@ -74,14 +74,14 @@ public class InvoiceHtmlRenderer
         sb.Append($"<span class='badge'>{Html(GetStatusLabel(invoice.Status))}</span>");
         sb.Append("</div>");
 
-        sb.Append("<div style='margin-top:20px;'>");
-        sb.Append("<div class='address-block'>");
-        sb.Append($"<h3>{Html(Strings.PdfCompany)}</h3>");
-        sb.Append($"<div>{Html(company.Name)}</div>");
-        sb.Append($"<div>{Html(company.Address)}</div>");
+        var companyBlock = new StringBuilder();
+        companyBlock.Append("<div class='address-block'>");
+        companyBlock.Append($"<h3>{Html(Strings.PdfCompany)}</h3>");
+        companyBlock.Append($"<div>{Html(company.Name)}</div>");
+        companyBlock.Append($"<div>{Html(company.Address)}</div>");
         if (!string.IsNullOrWhiteSpace(company.CountryCode))
         {
-            sb.Append($"<div>{Html(company.CountryCode)}</div>");
+            companyBlock.Append($"<div>{Html(company.CountryCode)}</div>");
         }
 
         var isBgCompany = company.CountryCode.Equals("BG", StringComparison.OrdinalIgnoreCase);
@@ -89,28 +89,44 @@ public class InvoiceHtmlRenderer
         {
             if (!string.IsNullOrWhiteSpace(company.VatNumber))
             {
-                sb.Append($"<div>{Html(Strings.VatLabel)}: {Html(company.VatNumber)}</div>");
+                companyBlock.Append($"<div>{Html(Strings.VatLabel)}: {Html(company.VatNumber)}</div>");
             }
 
             if (!string.IsNullOrWhiteSpace(company.Eik))
             {
-                sb.Append($"<div>{Html(Strings.EikLabel)}: {Html(company.Eik)}</div>");
+                companyBlock.Append($"<div>{Html(Strings.EikLabel)}: {Html(company.Eik)}</div>");
             }
         }
         else if (!string.IsNullOrWhiteSpace(company.VatNumber))
         {
-            sb.Append($"<div>{Html(company.CountryCode)} | {Html(company.VatNumber)}</div>");
+            companyBlock.Append($"<div>{Html(company.CountryCode)} | {Html(company.VatNumber)}</div>");
         }
 
-        sb.Append($"<div>{Html(company.BankIban)} / {Html(company.BankBic)}</div>");
-        sb.Append("</div>");
+        companyBlock.Append($"<div>{Html(company.BankIban)} / {Html(company.BankBic)}</div>");
+        companyBlock.Append("</div>");
 
-        sb.Append("<div class='address-block'>");
-        sb.Append($"<h3>{Html(Strings.PdfCustomer)}</h3>");
-        sb.Append($"<div>{Html(invoice.CustomerNameSnapshot)}</div>");
-        sb.Append($"<div>{Html(invoice.CustomerAddressSnapshot)}</div>");
-        sb.Append($"<div>{Html(invoice.CustomerVatSnapshot)}</div>");
-        sb.Append("</div>");
+        var customerBlock = new StringBuilder();
+        customerBlock.Append("<div class='address-block'>");
+        customerBlock.Append($"<h3>{Html(Strings.PdfCustomer)}</h3>");
+        customerBlock.Append($"<div>{Html(invoice.CustomerNameSnapshot)}</div>");
+        customerBlock.Append($"<div>{Html(invoice.CustomerAddressSnapshot)}</div>");
+        customerBlock.Append($"<div>{Html(invoice.CustomerVatSnapshot)}</div>");
+        customerBlock.Append("</div>");
+
+        var isBgCulture = invoiceCulture.TwoLetterISOLanguageName.Equals("bg", StringComparison.OrdinalIgnoreCase);
+
+        sb.Append("<div style='margin-top:20px;'>");
+        if (isBgCulture)
+        {
+            // Bulgarian standard layout swaps positions: Customer (Получател) on left, Company (Доставчик) on right.
+            sb.Append(customerBlock);
+            sb.Append(companyBlock);
+        }
+        else
+        {
+            sb.Append(companyBlock);
+            sb.Append(customerBlock);
+        }
         sb.Append("</div>");
 
         sb.Append("<div class='meta'>");
@@ -210,8 +226,7 @@ public class InvoiceHtmlRenderer
             var path = company.LogoPath;
             if (!Path.IsPathRooted(path))
             {
-                var baseDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", ".."));
-                path = Path.GetFullPath(Path.Combine(baseDir, path));
+                path = AppPaths.ResolvePath(path);
             }
 
             if (!File.Exists(path))

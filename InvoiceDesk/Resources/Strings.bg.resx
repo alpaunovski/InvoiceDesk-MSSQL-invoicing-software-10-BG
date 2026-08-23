@@ -136,10 +136,10 @@
     <value>Обобщение на ДДС</value>
   </data>
   <data name="PdfCompany" xml:space="preserve">
-    <value>Фирма</value>
+    <value>Доставчик</value>
   </data>
   <data name="PdfCustomer" xml:space="preserve">
-    <value>Клиент</value>
+    <value>Получател</value>
   </data>
   <data name="PdfInvoiceNumber" xml:space="preserve">
     <value>Номер на фактура</value>

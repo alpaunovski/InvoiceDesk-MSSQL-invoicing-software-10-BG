@@ -105,17 +105,8 @@ public class PdfExportService
     private string GetOutputDirectory()
     {
         var configured = _configuration.GetSection("Pdf")?["OutputDirectory"];
-        var workspaceRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..")); // Base project root when running from bin.
-
-        if (!string.IsNullOrWhiteSpace(configured))
-        {
-            var expanded = Environment.ExpandEnvironmentVariables(configured);
-            return Path.IsPathRooted(expanded)
-                ? expanded
-                : Path.GetFullPath(Path.Combine(workspaceRoot, expanded));
-        }
-
-        return Path.Combine(workspaceRoot, "exports");
+        var targetDir = !string.IsNullOrWhiteSpace(configured) ? configured : "Exports";
+        return AppPaths.ResolvePath(targetDir);
     }
 
     /// <summary>
